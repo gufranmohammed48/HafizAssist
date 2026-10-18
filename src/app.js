@@ -264,7 +264,7 @@ function controls() {
   const searchLocked = locked() || !chapter;
   $('search-lock-info').hidden = !searchLocked;
   $('search-lock-tip').textContent = ({
-    recording: 'Search is paused while the microphone is on. Press the red microphone button to stop reciting, then search or choose a surah.',
+    recording: 'Search is paused while the microphone is on. Press the microphone button to stop reciting, then search or choose a surah.',
     loading: 'Search is paused while the speech model loads. Once recitation starts, stop the microphone to change passages.',
     starting: 'Search is paused while the microphone starts. Stop reciting before changing passages.',
     stopping: 'Finishing recognition. Search will be available again in a moment.',
@@ -1047,7 +1047,7 @@ async function startRecording(file) {
       if (data.controlled) { captureActions.get(data.id)?.(); captureActions.delete(data.id); return; }
       if (data.flushed) { flushResolve?.(); flushResolve = null; return; }
       if (calibrationResolve && phase === 'starting' && data.samples) {
-        // The mic is not red yet. Learn room noise from these startup frames
+        // The mic is not recording yet. Learn room noise from these startup frames
         // without submitting them to recognition or changing practice counts.
         if (teacherActivity.calibrate(data.samples)) { calibrationResolve(); calibrationResolve = null; }
         return;

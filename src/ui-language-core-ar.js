@@ -124,7 +124,7 @@ export const messages = {
   'Stop the microphone before searching for a verse by voice.': 'أوقف الميكروفون قبل البحث عن آية بالصوت.',
   'Voice search will be available when Quran loading and microphone setup have finished.': 'سيُتاح البحث الصوتي بعد تحميل القرآن وتجهيز الميكروفون.',
   'Please wait…': 'يرجى الانتظار…',
-  'Search is paused while the microphone is on. Press the red microphone button to stop reciting, then search or choose a surah.': 'البحث متوقف أثناء تشغيل الميكروفون. اضغط زر الميكروفون الأحمر لإيقاف التلاوة، ثم ابحث أو اختر سورة.',
+  'Search is paused while the microphone is on. Press the microphone button to stop reciting, then search or choose a surah.': 'البحث متوقف أثناء تشغيل الميكروفون. اضغط زر الميكروفون لإيقاف التلاوة، ثم ابحث أو اختر سورة.',
   'Search is paused while the speech model loads. Once recitation starts, stop the microphone to change passages.': 'البحث متوقف أثناء تحميل نموذج التعرّف على الصوت. بعد بدء التلاوة، أوقف الميكروفون لتغيير المقطع.',
   'Search is paused while the microphone starts. Stop reciting before changing passages.': 'البحث متوقف أثناء بدء تشغيل الميكروفون. أوقف التلاوة قبل تغيير المقطع.',
   'Finishing recognition. Search will be available again in a moment.': 'جارٍ إنهاء التعرّف على الصوت. سيتاح البحث مجددًا بعد قليل.',

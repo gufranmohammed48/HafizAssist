@@ -3,8 +3,9 @@
 /* One bundled Unicode font for the Quran and recognized Arabic alike. */
 .book-view .word,.book-view .bismillah-line .word,.book-view [lang=ar],.book-view .ayah-number{font-family:BookQuran,serif}
 .book-view #word-info.is-review .word-info-arabic{font-family:BookQuran,serif;font-size:20px;font-weight:400;line-height:1.8}
-body.book-view{background:#e9e6dd;min-height:100vh}
-body.book-view.dark{background:#0e1712}
+/* The reading controls and account icon share one palette for each state. */
+body.book-view{background:#e9e6dd;min-height:100vh;--control-off-light:#adb9c1;--control-off-deep:#5b6c7b;--control-off-edge:#344653;--control-off-ivory:#e2ebef;--control-off-board:#8297a4;--control-on-light:#79ceb5;--control-on-deep:#256d58;--control-on-edge:#174b3d;--control-on-ivory:#d2f3e6;--control-on-board:#6da68a}
+body.book-view.dark{background:#0e1712;--control-off-light:#91a3b0;--control-off-deep:#435969;--control-off-edge:#263b49;--control-off-ivory:#d8e5ec;--control-off-board:#6d8799;--control-on-light:#83d8bf;--control-on-deep:#245e50;--control-on-edge:#113d32;--control-on-ivory:#bce5d6;--control-on-board:#5e9d80}
 .book-view .header{height:0;padding:0;margin:0}
 .book-view .header .bismillah{display:none}
 .book-view .header .app-version{position:fixed;top:10px;right:10px;z-index:12;background:var(--paper)}
@@ -23,22 +24,22 @@ body.book-view.dark{background:#0e1712}
 .book-view .recorder-main>.book-control:hover:not(:disabled){transform:translateY(-1px)}
 .book-view .recorder-main>.book-control:active:not(:disabled){transform:scale(.94)}
 .book-view .book-control svg,.book-view #teacher-icon-on,.book-view #teacher-icon-off{display:flex;align-items:center;justify-content:center}
-/* Original Teacher symbol: separate on/off palettes for each color theme. */
-.book-view #teacher-enabled{position:relative;--teacher-figure:#919ca4;--teacher-line:#73818a;--teacher-board:#e6ebe8;--teacher-accent:#84969a;--teacher-mark:#73818a;padding:4px}
-.book-view #teacher-enabled[aria-pressed=true]{--teacher-figure:#194968;--teacher-line:#204f68;--teacher-board:#d6eee4;--teacher-accent:#16836b;--teacher-mark:#145d50;background:color-mix(in srgb,var(--teacher-accent) 14%,var(--card));color:var(--teacher-accent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--teacher-accent) 35%,transparent)}
-.book-view.dark #teacher-enabled{--teacher-figure:#70827b;--teacher-line:#a4b2ab;--teacher-board:#2a3b31;--teacher-accent:#8c9f94;--teacher-mark:#aebbb3}
-.book-view.dark #teacher-enabled[aria-pressed=true]{--teacher-figure:#80d8bc;--teacher-line:#c9e8dc;--teacher-board:#294a3b;--teacher-accent:#dff5e8;--teacher-mark:#e0f5e8}
-.book-view #teacher-icon-on,.book-view #teacher-icon-off{flex:0 0 32px}
-.book-view #teacher-enabled svg{display:block;width:32px;height:32px;flex:none}
-/* Teacher's quiet mint pulse follows the live microphone state. Enabling
-   Teacher alone leaves the icon still, including between practice sessions. */
-.book-view.reciting #teacher-enabled[aria-pressed=true]::before{content:'';position:absolute;inset:1px;border:1.5px solid var(--teacher-figure);border-radius:50%;pointer-events:none;animation:book-teacher-listening 2.4s ease-out infinite}
-.book-view.reciting #teacher-enabled[aria-pressed=true] #teacher-icon-on svg{transform-origin:50% 72%;animation:book-teacher-attentive 2.4s ease-in-out infinite;filter:drop-shadow(0 2px 3px color-mix(in srgb,var(--teacher-figure) 24%,transparent))}
-@keyframes book-teacher-listening{0%{opacity:.55;transform:scale(.94)}70%,100%{opacity:0;transform:scale(1.28)}}
-@keyframes book-teacher-attentive{0%,100%{transform:translateY(0) rotate(0)}30%{transform:translateY(-1.5px) rotate(-3deg)}65%{transform:translateY(-.5px) rotate(2deg)}}
+/* Off/closed is slate; enabled/open, including live capture, is emerald. */
+.book-view :is(#record,#teacher-enabled,#visibility,#book-search,#book-menu).book-control{position:relative;--control-light:var(--control-off-light);--control-deep:var(--control-off-deep);--control-edge:var(--control-off-edge);--control-ivory:var(--control-off-ivory);--control-board:var(--control-off-board);padding:0;border-radius:14px;background:transparent}
+.book-view .book-mic-symbol,.book-view .teacher-symbol,.book-view .book-orb-symbol{display:block;width:40px;height:40px;flex:none;overflow:visible;filter:drop-shadow(0 3px 2px #071e1b30) drop-shadow(0 1px 0 #ffffff48);transition:filter 220ms ease}
+/* Visibility's pressed state means hidden text, so the printed page is green. */
+.book-view :is(#record.recording,#teacher-enabled[aria-pressed=true],#visibility[aria-pressed=false],#book-search[aria-expanded=true],#book-menu[aria-expanded=true]){--control-light:var(--control-on-light);--control-deep:var(--control-on-deep);--control-edge:var(--control-on-edge);--control-ivory:var(--control-on-ivory);--control-board:var(--control-on-board)}
+.book-view #record.recording{box-shadow:0 0 0 var(--voice-glow,6px) color-mix(in srgb,var(--control-on-light) 12%,transparent)}
+.book-view #record.recording::before,.book-view #record.recording::after{border-radius:16px;border-color:var(--control-on-light)}
+.book-view #teacher-enabled{--teacher-figure:var(--control-on-light)}
+.book-view #teacher-icon-on,.book-view #teacher-icon-off{flex:0 0 40px}
+/* Only the surrounding rings animate, using the microphone's ripple timing.
+   The Teacher artwork remains still; voice search does not activate the rings. */
+.book-view.reciting #teacher-enabled[aria-pressed=true]::before,.book-view.reciting #teacher-enabled[aria-pressed=true]::after{content:'';position:absolute;inset:-4px;border:1.5px solid var(--teacher-figure);border-radius:50%;pointer-events:none;animation:mic-ripple 2.2s ease-out infinite}
+.book-view.reciting #teacher-enabled[aria-pressed=true]::after{animation-delay:1.1s}
 @media(prefers-reduced-motion:reduce){
-  .book-view.reciting #teacher-enabled[aria-pressed=true]::before{animation:none;opacity:.55}
-  .book-view.reciting #teacher-enabled[aria-pressed=true] #teacher-icon-on svg{animation:none;filter:none}
+  .book-view.reciting #teacher-enabled[aria-pressed=true]::before,.book-view.reciting #teacher-enabled[aria-pressed=true]::after{animation:none;opacity:.3}
+  .book-view .book-mic-symbol,.book-view .teacher-symbol,.book-view .book-orb-symbol{transition:none}
 }
 .book-view #teacher-tooltip{position:absolute;display:block;z-index:20;left:calc(100% + 14px);top:50%;width:270px;max-width:calc(100vw - 24px);padding:13px 15px;border:1px solid var(--border);border-radius:14px;background:color-mix(in srgb,var(--card) 94%,transparent);color:var(--ink);box-shadow:0 10px 32px #0002;backdrop-filter:blur(8px);font-size:12px;font-weight:400;line-height:1.65;text-align:left;white-space:normal;pointer-events:none;opacity:0;visibility:hidden;transform:translateY(-50%) scale(.9);transform-origin:left center;transition:opacity 240ms ease,transform 240ms ease,visibility 240ms}
 .book-view #teacher-enabled:hover #teacher-tooltip,.book-view #teacher-enabled:focus-visible #teacher-tooltip{opacity:1;visibility:visible;transform:translateY(-50%) scale(1)}

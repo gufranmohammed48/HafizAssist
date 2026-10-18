@@ -74,23 +74,76 @@ function setupBookLayout() {
   for (const selector of ['.history', '.privacy-note', 'main > footer']) {
     document.querySelector(selector)?.remove();
   }
-  const svg = paths => `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
   const control = (id, label, icon) => {
     const button = document.createElement('button');
     button.id = id; button.type = 'button'; button.className = 'icon-button book-control';
     button.setAttribute('aria-label', label); button.title = label; button.innerHTML = icon;
     return button;
   };
-  // Original, simple teacher silhouette with a board and a raised pointer.
-  const teacherSymbol = off => `<svg class="teacher-symbol" width="32" height="32" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
-    <rect x="31" y="5" width="29" height="28" rx="2.5" fill="var(--teacher-board)" stroke="var(--teacher-line)" stroke-width="2.5"/>
-    <path d="M45.5 33v8m-7 0h14" fill="none" stroke="var(--teacher-line)" stroke-width="2.5" stroke-linecap="round"/>
-    <circle cx="16" cy="17" r="8.5" fill="var(--teacher-figure)"/>
-    <path d="M4 57V40c0-7 5-12 12-12s12 5 12 12v17Z" fill="var(--teacher-figure)"/>
-    <path d="m25 35 11-8" fill="none" stroke="var(--teacher-figure)" stroke-width="6" stroke-linecap="round"/>
-    <path d="m36 28 13-17" fill="none" stroke="var(--teacher-accent)" stroke-width="2.8" stroke-linecap="round"/>
-    ${off ? '<path d="M48 24h7" fill="none" stroke="var(--teacher-mark)" stroke-width="2.2" stroke-linecap="round"/>' : '<path d="m47 23 3 3 5-6" fill="none" stroke="var(--teacher-mark)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>'}
+  // Original vector miniatures share the account icon's curved emerald tile,
+  // lit edges and raised ivory details; no remote images are needed offline.
+  const orbSymbol = (key, className, detail) => `<svg class="book-orb-symbol ${className}" width="40" height="40" viewBox="0 0 48 48" fill="none" aria-hidden="true" focusable="false">
+    <defs>
+      <linearGradient id="${key}-back" x1="7" y1="3" x2="43" y2="48" gradientUnits="userSpaceOnUse"><stop stop-color="var(--control-light)"/><stop offset="1" stop-color="var(--control-deep)"/></linearGradient>
+      <linearGradient id="${key}-ivory" x1="14" y1="12" x2="34" y2="36" gradientUnits="userSpaceOnUse"><stop stop-color="#fff"/><stop offset="1" stop-color="var(--control-ivory)"/></linearGradient>
+    </defs>
+    <rect x="4" y="6" width="40" height="39" rx="14" fill="var(--control-edge)"/>
+    <rect x="4" y="3" width="40" height="40" rx="14" fill="url(#${key}-back)"/>
+    <path d="M8 20v-4a9 9 0 0 1 9-9h12" stroke="#fff" stroke-opacity=".4" stroke-width="1.7" stroke-linecap="round"/>
+    ${detail}
   </svg>`;
+  const textPageSymbol = hidden => {
+    const key = hidden ? 'book-page-hidden' : 'book-page-visible';
+    return orbSymbol(key, 'book-visibility-symbol', `
+      <path d="M17 11h10l6 6v17a2 2 0 0 1-2 2H17a2 2 0 0 1-2-2V13a2 2 0 0 1 2-2Z" fill="var(--control-edge)" fill-opacity=".4" transform="translate(.7 1.5)"/>
+      <path d="M17 11h10l6 6v17a2 2 0 0 1-2 2H17a2 2 0 0 1-2-2V13a2 2 0 0 1 2-2Z" fill="url(#${key}-ivory)"/>
+      <path d="M27 11v4a2 2 0 0 0 2 2h4" fill="var(--control-light)" fill-opacity=".4" stroke="var(--control-deep)" stroke-opacity=".25" stroke-width="1" stroke-linejoin="round"/>
+      <path d="M17.5 15v17.5" stroke="#fff" stroke-opacity=".8" stroke-width="1" stroke-linecap="round"/>
+      ${hidden ? '' : '<path d="M22 20.5h7m-10 4h10m-8 4h8m-10 4h10" stroke="var(--control-deep)" stroke-width="1.6" stroke-linecap="round"/>'}`);
+  };
+  // Retain the existing state hooks so text hiding and accessibility stay intact.
+  document.getElementById('eye-open').innerHTML = textPageSymbol(false);
+  document.getElementById('eye-closed').innerHTML = textPageSymbol(true);
+  record.innerHTML = `<svg class="book-mic-symbol" width="40" height="40" viewBox="0 0 48 48" fill="none" aria-hidden="true" focusable="false">
+    <defs>
+      <linearGradient id="book-mic-back" x1="7" y1="3" x2="43" y2="48" gradientUnits="userSpaceOnUse"><stop stop-color="var(--control-light)"/><stop offset="1" stop-color="var(--control-deep)"/></linearGradient>
+      <linearGradient id="book-mic-metal" x1="18" y1="11" x2="31" y2="34" gradientUnits="userSpaceOnUse"><stop stop-color="#fff"/><stop offset="1" stop-color="var(--control-ivory)"/></linearGradient>
+    </defs>
+    <rect x="4" y="6" width="40" height="39" rx="14" fill="var(--control-edge)"/>
+    <rect x="4" y="3" width="40" height="40" rx="14" fill="url(#book-mic-back)"/>
+    <path d="M8 20v-4a9 9 0 0 1 9-9h12" stroke="#fff" stroke-opacity=".4" stroke-width="1.7" stroke-linecap="round"/>
+    <rect x="18.5" y="11.5" width="12" height="20" rx="6" fill="#092e27" fill-opacity=".2"/>
+    <path d="M24 30v7m-5 0h10M15.5 22v1a8.5 8.5 0 0 0 17 0v-1" stroke="var(--control-edge)" stroke-opacity=".5" stroke-width="2.8" stroke-linecap="round" transform="translate(0 1)"/>
+    <path d="M24 30v7m-5 0h10M15.5 22v1a8.5 8.5 0 0 0 17 0v-1" stroke="url(#book-mic-metal)" stroke-width="2.5" stroke-linecap="round"/>
+    <rect x="18" y="10" width="12" height="19" rx="6" fill="url(#book-mic-metal)"/>
+    <path d="M21 14.5a3 3 0 0 1 3-2.5" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/>
+    <path d="M20.5 18h7m-7 3h7m-7 3h7" stroke="var(--control-deep)" stroke-opacity=".38" stroke-width="1.2" stroke-linecap="round"/>
+  </svg>`;
+  const teacherSymbol = off => {
+    const key = off ? 'book-teacher-off' : 'book-teacher-on';
+    return `<svg class="teacher-symbol" width="40" height="40" viewBox="0 0 48 48" fill="none" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="${key}-back" x1="7" y1="3" x2="43" y2="48" gradientUnits="userSpaceOnUse"><stop stop-color="var(--control-light)"/><stop offset="1" stop-color="var(--control-deep)"/></linearGradient>
+        <linearGradient id="${key}-figure" x1="11" y1="15" x2="28" y2="38" gradientUnits="userSpaceOnUse"><stop stop-color="#fff"/><stop offset="1" stop-color="var(--control-ivory)"/></linearGradient>
+        <linearGradient id="${key}-board" x1="27" y1="11" x2="39" y2="29" gradientUnits="userSpaceOnUse"><stop stop-color="var(--control-board)"/><stop offset="1" stop-color="var(--control-deep)"/></linearGradient>
+      </defs>
+      <rect x="4" y="6" width="40" height="39" rx="14" fill="var(--control-edge)"/>
+      <rect x="4" y="3" width="40" height="40" rx="14" fill="url(#${key}-back)"/>
+      <path d="M8 20v-4a9 9 0 0 1 9-9h12" stroke="#fff" stroke-opacity=".4" stroke-width="1.7" stroke-linecap="round"/>
+      <path d="M32 29v6m-4 0h8" stroke="var(--control-edge)" stroke-width="2" stroke-linecap="round" transform="translate(0 1)"/>
+      <path d="M32 28v6m-4 0h8" stroke="var(--control-ivory)" stroke-width="1.8" stroke-linecap="round"/>
+      <rect x="24.5" y="11.5" width="15.5" height="18" rx="2.7" fill="var(--control-edge)" fill-opacity=".55"/>
+      <rect x="23" y="10" width="16" height="18" rx="2.5" fill="url(#${key}-board)" stroke="var(--control-ivory)" stroke-width="1.5"/>
+      <path d="M26 13h6" stroke="#fff" stroke-opacity=".35" stroke-width="1" stroke-linecap="round"/>
+      <g fill="var(--control-edge)" fill-opacity=".32" transform="translate(1 1.5)"><circle cx="16" cy="19" r="5.5"/><path d="M8.5 37V30c0-4.7 2.6-7.3 7.5-7.3s7.5 2.6 7.5 7.3v7Z"/></g>
+      <circle cx="16" cy="18" r="5.5" fill="url(#${key}-figure)"/>
+      <path d="M8.5 36V29c0-4.7 2.6-7.3 7.5-7.3s7.5 2.6 7.5 7.3v7Z" fill="url(#${key}-figure)"/>
+      <path d="M12.5 15.5a4 4 0 0 1 4-1.3" stroke="#fff" stroke-opacity=".8" stroke-width="1.1" stroke-linecap="round"/>
+      <path d="M11 31v3" stroke="#fff" stroke-opacity=".45" stroke-width="1.1" stroke-linecap="round"/>
+      <g class="teacher-pointer"><path d="m20.5 26.5 7-5" stroke="var(--control-edge)" stroke-opacity=".4" stroke-width="4" stroke-linecap="round" transform="translate(0 1)"/><path d="m20.5 26 7-5" stroke="url(#${key}-figure)" stroke-width="3.6" stroke-linecap="round"/><path d="m27 21 7-8" stroke="var(--control-ivory)" stroke-width="1.5" stroke-linecap="round"/></g>
+      ${off ? '<path d="M32 23h4" stroke="var(--control-ivory)" stroke-opacity=".8" stroke-width="1.5" stroke-linecap="round"/>' : '<path d="m31 22 1.7 1.7 3.8-4.2" stroke="#e4fbc8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>'}
+    </svg>`;
+  };
   const teacherToggle = control('teacher-enabled', 'Turn Teacher on',
     `<span id="teacher-icon-on" hidden>${teacherSymbol(false)}</span><span id="teacher-icon-off">${teacherSymbol(true)}</span>`);
   teacherToggle.setAttribute('aria-pressed', 'false');
@@ -110,8 +163,19 @@ function setupBookLayout() {
     tajweedToggle.setAttribute('aria-describedby', 'tajweed-colors-status');
     tajweedToggle.disabled = true;
   }
-  const searchButton = control('book-search', 'Find a verse by voice', svg('<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>'));
-  const menu = control('book-menu', 'Open reading settings', svg('<path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2" fill="var(--card)"/><circle cx="15" cy="12" r="2" fill="var(--card)"/><circle cx="9" cy="18" r="2" fill="var(--card)"/>'));
+  const searchButton = control('book-search', 'Find a verse by voice', orbSymbol('book-search-icon', 'book-search-symbol', `
+    <path d="m28 27 7 7" stroke="var(--control-edge)" stroke-width="5.7" stroke-linecap="round" transform="translate(.5 1.4)"/>
+    <circle cx="21.5" cy="20.5" r="9" stroke="var(--control-edge)" stroke-width="3.5" transform="translate(.5 1.4)"/>
+    <circle cx="21.5" cy="20.5" r="8.7" fill="var(--control-deep)" fill-opacity=".26"/>
+    <path d="m28 27 7 7" stroke="url(#book-search-icon-ivory)" stroke-width="5" stroke-linecap="round"/>
+    <circle cx="21.5" cy="20.5" r="8.7" stroke="url(#book-search-icon-ivory)" stroke-width="3.1"/>
+    <path d="M15.8 20a5.9 5.9 0 0 1 5.5-5.3m9.1 14.8 3.7 3.7" stroke="#fff" stroke-opacity=".85" stroke-width="1.25" stroke-linecap="round"/>`));
+  const menu = control('book-menu', 'Open reading settings', orbSymbol('book-settings-icon', 'book-settings-symbol', `
+    <path d="M12 16h24M12 24h24M12 32h24" stroke="var(--control-edge)" stroke-opacity=".45" stroke-width="2.7" stroke-linecap="round" transform="translate(.5 1.5)"/>
+    <path d="M12 16h24M12 24h24M12 32h24" stroke="url(#book-settings-icon-ivory)" stroke-width="2.2" stroke-linecap="round"/>
+    <g fill="var(--control-edge)" fill-opacity=".5" transform="translate(.7 1.5)"><circle cx="18" cy="16" r="3.8"/><circle cx="30" cy="24" r="3.8"/><circle cx="22" cy="32" r="3.8"/></g>
+    <g fill="url(#book-settings-icon-ivory)"><circle cx="18" cy="16" r="3.5"/><circle cx="30" cy="24" r="3.5"/><circle cx="22" cy="32" r="3.5"/></g>
+    <path d="M16.2 14.5h1.5m10.5 8h1.5m-9.5 8h1.5" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/>`));
   for (const button of [searchButton, menu]) {
     button.setAttribute('aria-haspopup', 'dialog');
     button.setAttribute('aria-expanded', 'false');

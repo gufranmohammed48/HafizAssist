@@ -1,6 +1,18 @@
-# QUD Teacher audio trial · V41
+# QUD Teacher audio trial · V47
+
+V47 shares the 3D folded-page show/hide artwork: text lines while visible and a blank page while hidden, replacing the eye icons. This is a local visual change only; trial audio and tracking are unchanged. No tests, builds, browser checks, microphone tests, push, or deployment were performed.
+
+V46 shares the green recording microphone and green pulse rings, with slate gray while off. Signed-in users have an emerald 3D initials tile; signed-out users retain the slate person icon. Teacher artwork stays still with its existing surrounding rings. This supersedes the earlier red microphone palette without changing trial audio, tracking, or account behavior. Changes remain local; no tests, builds, browser checks, microphone tests, push, or deployment were performed.
+
+V45 shares the consistent 3D reading controls and slate/emerald state colors, retaining red for a live microphone and ring-only Teacher animation. Trial audio is unchanged; changes remain local, with no tests, builds, browser checks, or deployment.
+
+V44 shares the Teacher ring-only animation change; the icon artwork remains still. This trial audio is unchanged. Changes remain local; no tests or builds were run.
+
+V43 shares the new 3D-style microphone/Teacher controls and username/password account dialog with the other entries. Password accounts require separate account Worker migration, secret setup, and deployment; this batch remains local. QUD is still confined to `test2.html` and its audio behavior is unchanged. No tests, validation builds, browser checks, or audio checks were run.
 
 V41 confirms Cloudflare authorization, initializes the new D1 account schema, and deploys the separate `recitealquran-accounts` Worker at `recitealquran.com/api/account*`. The existing Desktop-HafizAssist account service and database are unchanged. The new Worker's private Google credentials are still missing, so sign-in is not ready and the updated frontend remains unpublished. This trial's audio behavior is unchanged. Deployment bundling was part of publishing the account backend, not validation. No tests, validation builds, browser checks, or microphone tests were run.
+
+V42 records the owner-reported successful live Google sign-in and second-login restoration of the saved Quran position. The existing working Google values were converted atomically from plain Worker variables to Cloudflare Secrets; the D1 and APP_ORIGIN bindings were preserved, and no credential values were printed or saved locally. This is an account configuration/documentation update; recitation and Teacher logic are unchanged. The owner published the OAuth app in commit `6e215fc`; no additional frontend deployment or broad app/microphone tests were performed for this follow-up. Launch announcements remain drafts.
 
 V40 connects the account Worker configuration to the owner-created D1 database `bc19d842-ecb3-443a-b363-3a4e2b4d955b`. The owner confirmed the Google callback is saved. Private Google Worker secrets, remote schema initialization, and deployment remain separate setup steps; they are not implied by this configuration change. No tests, validation builds, browser checks, or microphone tests were run.
 
