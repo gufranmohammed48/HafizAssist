@@ -1,0 +1,28 @@
+{
+  "kind": "isolated-mocked-frontend-account-tests",
+  "passed": 17,
+  "failed": 0,
+  "browser": "fresh headless Microsoft Edge",
+  "productionRequests": false,
+  "evidence": "Completed execution reported by account_frontend_tests: session 68992, exit code 0.",
+  "limitation": "API mocked. Runner dependency lookup and dummy harness badge were made portable afterward; that unchanged-case rerun was aborted at approval.",
+  "cases": [
+    "Signed-out desktop exposes Google and enabled username sign-in",
+    "Registration rejects malformed username, short password, and mismatched confirmation",
+    "Signup normalizes username; recovery acknowledgment blocks close; secrets stay out of storage",
+    "Pending signup prevents duplicate submission",
+    "Invalid password gives generic error and clears secret without authenticated avatar",
+    "Successful login shows initials; logout clears confirmed identity and owner marker",
+    "Password recovery requires a code, rotates displayed code, and requires acknowledgment without automatic login",
+    "Password change includes current/new credentials, CSRF, and account assertion then clears fields",
+    "Arabic account UI is RTL with diacritics preserved in initials; identity markup stays text",
+    "Busy microphone disables password changes, resume, and logout with explanation",
+    "Startup preserves remote checkpoint and pointer; explicit resume keeps exact Quran coordinates",
+    "Offline checkpoint is owner-specific and syncs with authentication guards when online",
+    "Conflict pauses sync for explicit choice and does not move reading pointer",
+    "Session expiry clears confirmed avatar but preserves account queue separately from guest",
+    "Different account in another tab does not attach reading session silently",
+    "Unavailable password service keeps Google enabled and explains capability",
+    "Mobile account dialog fits viewport and signup confirmation remains usable"
+  ]
+}

@@ -15,6 +15,8 @@ export function setupMobilePageSwipe({ reader, canTurn, beforeTurn, turnPage, on
 
   function captureStyles(current) {
     const computed = getComputedStyle(reader);
+    // Measure the resting page once, before translating it with the finger.
+    current.pageWidth = reader.getBoundingClientRect().width;
     current.baseTransform = computed.transform === 'none' ? '' : computed.transform;
     current.baseOpacity = Number(computed.opacity) || 1;
     current.styles = temporaryProperties.map(property => [
@@ -94,8 +96,8 @@ export function setupMobilePageSwipe({ reader, canTurn, beforeTurn, turnPage, on
     reader.classList.remove('mobile-page-dragging');
     reader.classList.add('mobile-page-turning');
     try {
-      // Stop and finish the current recitation only after the user commits a
-      // page turn. A short drag, vertical scroll or cancelled swipe keeps it on.
+      // The caller must still allow navigation when the gesture commits.
+      // Starting the microphone during a drag cancels the pending page turn.
       if (beforeTurn) {
         const ready = await beforeTurn(direction);
         if (current.finished) return;
@@ -150,7 +152,6 @@ export function setupMobilePageSwipe({ reader, canTurn, beforeTurn, turnPage, on
       frame: 0,
       wait: null,
       finished: false,
-      samples: [{ x: event.clientX, at: performance.now() }],
     };
   }
 
@@ -201,9 +202,6 @@ export function setupMobilePageSwipe({ reader, canTurn, beforeTurn, turnPage, on
     if (event.cancelable) event.preventDefault();
     const direction = dx >= 0 ? 1 : -1;
     const offset = allowed(direction) ? dx : Math.sign(dx) * Math.min(48, Math.abs(dx) * .22);
-    const now = performance.now();
-    current.samples.push({ x: event.clientX, at: now });
-    current.samples = current.samples.filter(sample => now - sample.at <= 100);
     current.pendingOffset = offset;
     if (!current.frame) current.frame = requestAnimationFrame(() => {
       current.frame = 0;
@@ -220,12 +218,10 @@ export function setupMobilePageSwipe({ reader, canTurn, beforeTurn, turnPage, on
     const dx = event.clientX - current.startX;
     const dy = event.clientY - current.startY;
     const direction = dx >= 0 ? 1 : -1;
-    const threshold = Math.min(64, Math.max(44, reader.getBoundingClientRect().width * .13));
-    const recent = current.samples[0];
-    const elapsed = Math.max(1, performance.now() - recent.at);
-    const velocity = (event.clientX - recent.x) / elapsed;
-    const isFlick = Math.abs(dx) >= 36 && velocity * direction >= .5;
-    if ((Math.abs(dx) >= threshold || isFlick) && Math.abs(dx) >= Math.abs(dy) * 1.15 && allowed(direction)) {
+    // Distance is required even for a fast flick; returning the finger toward
+    // the start before release also returns the page instead of turning it.
+    const threshold = current.pageWidth * .7;
+    if (Math.abs(dx) >= threshold && Math.abs(dx) >= Math.abs(dy) * 1.15 && allowed(direction)) {
       void commit(current, direction);
     } else {
       void snapBack(current);

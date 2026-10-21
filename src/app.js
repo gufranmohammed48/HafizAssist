@@ -1181,21 +1181,18 @@ $('previous-page').addEventListener('click', () => openPage(currentPage - 1));
 $('next-page').addEventListener('click', () => openPage(currentPage + 1));
 if (mobileView) {
   let swipeStartPage;
-  const canSwipePage = direction => Boolean(chapter) && ['idle', 'recording'].includes(phase) && !voiceSearch && !document.hidden &&
+  const canSwipePage = direction => Boolean(chapter) && phase === 'idle' && !voiceSearch && !document.hidden &&
     !$('voice-dialog').open && !$('book-settings')?.open && !document.body.classList.contains('teacher-panel-open') &&
     currentPage + direction >= 1 && currentPage + direction <= 604;
   const stopSwipes = setupMobilePageSwipe({
     reader: document.querySelector('.reader'),
     canTurn: canSwipePage,
     onSwipeStart() { swipeStartPage = currentPage; wordInfo.hide(); },
-    async beforeTurn(direction) {
+    beforeTurn(direction) {
       if (currentPage !== swipeStartPage || !canSwipePage(direction)) return false;
-      const sourcePage = currentPage;
-      // Final recognition belongs to this page. Keep it here until capture
-      // is closed and the worker has finished, then navigate with the mic off.
-      if (phase === 'recording') await stopRecording();
-      else teacher.cancel();
-      return phase === 'idle' && currentPage === sourcePage && canSwipePage(direction);
+      // Swipes never stop a recitation. The microphone must already be off.
+      teacher.cancel();
+      return currentPage === swipeStartPage && canSwipePage(direction);
     },
     turnPage(direction) {
       if (phase !== 'idle' || currentPage !== swipeStartPage || !canSwipePage(direction)) return false;

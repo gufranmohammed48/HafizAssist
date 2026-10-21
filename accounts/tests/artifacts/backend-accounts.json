@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "suite": "isolated-native-workers-account-backend",
+  "recordedOn": "2026-10-18",
+  "status": "blocked_before_worker_requests",
+  "harness": "accounts/tests/backend.test.mjs",
+  "passed": 0,
+  "failed": 0,
+  "executedCases": 0,
+  "plannedCases": 34,
+  "runtime": {
+    "node": "24.19.0",
+    "miniflare": "5.20261012.1-beta",
+    "storage": "isolated ephemeral D1"
+  },
+  "blocker": "The restricted process could not connect to its local workerd process: connect EACCES on 127.0.0.1. An escalated retry was requested but returned aborted by user, without a process session ID or test output.",
+  "coverage": {
+    "actualWorkerRequests": false,
+    "productionRequests": false,
+    "productionAccountsCreated": false,
+    "cloudSettingsChanged": false
+  },
+  "limits": [
+    "No backend behavioral case ran; the presence of this harness does not establish a passing backend test suite.",
+    "The harness bundles the actual Worker in memory, uses fictional credentials, and initializes isolated local migrations only.",
+    "Third-party Google sign-in and production login, signup, recovery, CPU limits, and microphone behavior were not exercised."
+  ]
+}

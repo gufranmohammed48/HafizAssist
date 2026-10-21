@@ -1,0 +1,11 @@
+{
+  "kind": "live-account-tests",
+  "status": "blocked_before_execution",
+  "executedCases": 0,
+  "passed": 0,
+  "failed": 0,
+  "productionRequests": false,
+  "productionAccountsCreated": false,
+  "reason": "The requested command was rejected by the execution permission prompt before process creation.",
+  "limitation": "Local backend and mocked browser results do not establish that live signup, login, recovery, or Cloudflare CPU limits work."
+}

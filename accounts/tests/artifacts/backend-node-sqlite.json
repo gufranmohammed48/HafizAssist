@@ -1,0 +1,164 @@
+{
+  "schema": 1,
+  "suite": "account-worker-node-sqlite-contract",
+  "recordedAt": "2026-10-18T10:06:59.027Z",
+  "status": "passed",
+  "harness": "accounts/tests/backend.test.mjs --node-sqlite",
+  "passed": 34,
+  "failed": 0,
+  "executedCases": 34,
+  "runtime": {
+    "node": "24.19.0",
+    "storage": "Node built-in SQLite DatabaseSync(':memory:')",
+    "workersRuntime": false
+  },
+  "coverage": {
+    "actualWorkerJavaScript": true,
+    "actualSQLiteTransactions": true,
+    "productionRequests": false,
+    "cloudSettingsChanged": false
+  },
+  "limits": [
+    "D1 adapter contract tests in one Node process; not native Cloudflare Workers or distributed D1 execution.",
+    "Concurrent API calls and atomic SQLite transactions are exercised locally; distributed isolate races are not established.",
+    "No external Google network requests, production signup/login, Workers CPU-limit checks, browser, or microphone tests."
+  ],
+  "cases": [
+    {
+      "name": "capabilities expose Google and password availability",
+      "status": "passed"
+    },
+    {
+      "name": "signup normalizes username and uses secure session cookie",
+      "status": "passed"
+    },
+    {
+      "name": "D1 contains salted slow password verifier and hashed recovery code only",
+      "status": "passed"
+    },
+    {
+      "name": "authenticated me identifies username without returning credentials or recovery code",
+      "status": "passed"
+    },
+    {
+      "name": "duplicate signup is case insensitive and leaves no orphan user",
+      "status": "passed"
+    },
+    {
+      "name": "known incorrect and missing account login give same generic response",
+      "status": "passed"
+    },
+    {
+      "name": "successful login rotates session and expires the presented old session",
+      "status": "passed"
+    },
+    {
+      "name": "passwords are not trimmed and Unicode/space passwords work",
+      "status": "passed"
+    },
+    {
+      "name": "password length and username shape reject invalid inputs",
+      "status": "passed"
+    },
+    {
+      "name": "exact request origin protects every unauthenticated password mutation",
+      "status": "passed"
+    },
+    {
+      "name": "alternate URL origin cannot impersonate app host",
+      "status": "passed"
+    },
+    {
+      "name": "form/malformed/array/null and oversized JSON inputs are rejected without 500",
+      "status": "passed"
+    },
+    {
+      "name": "progress endpoints require confirmed owner and mutation CSRF",
+      "status": "passed"
+    },
+    {
+      "name": "progress strips recordings/transcripts and rejects stale compare-and-swap",
+      "status": "passed"
+    },
+    {
+      "name": "accounts cannot read or overwrite another account progress",
+      "status": "passed"
+    },
+    {
+      "name": "simultaneous progress writes resolve to one success and one conflict",
+      "status": "passed"
+    },
+    {
+      "name": "Google account remains independent from same-named username account",
+      "status": "passed"
+    },
+    {
+      "name": "Google OAuth start uses fixed callback, PKCE and allowlisted return path",
+      "status": "passed"
+    },
+    {
+      "name": "Google callback rejects unbound state without provider network call",
+      "status": "passed"
+    },
+    {
+      "name": "password change requires current password and retains checkpoint",
+      "status": "passed"
+    },
+    {
+      "name": "recovery code resets password, rotates code and revokes every session",
+      "status": "passed"
+    },
+    {
+      "name": "recovery code accepts formatted uppercase/whitespace without changing entropy",
+      "status": "passed"
+    },
+    {
+      "name": "unknown username and wrong recovery code return identical generic result",
+      "status": "passed"
+    },
+    {
+      "name": "parallel signup enforces unique username atomically without orphan users",
+      "status": "passed"
+    },
+    {
+      "name": "parallel recovery consumes a recovery code exactly once",
+      "status": "passed"
+    },
+    {
+      "name": "parallel password changes preserve only winning session and password",
+      "status": "passed"
+    },
+    {
+      "name": "concurrent login failures enforce username quota across different IPs",
+      "status": "passed"
+    },
+    {
+      "name": "concurrent login failures enforce IP quota across different usernames",
+      "status": "passed"
+    },
+    {
+      "name": "registration IP quota remains atomic under simultaneous requests",
+      "status": "passed"
+    },
+    {
+      "name": "recovery quota and persisted rate identifiers never store raw IP/username",
+      "status": "passed"
+    },
+    {
+      "name": "logout checks CSRF/owner, removes current session and keeps other account",
+      "status": "passed"
+    },
+    {
+      "name": "account deletion removes local identity, sessions, checkpoint and preserves Google",
+      "status": "passed"
+    },
+    {
+      "name": "Google session survives password feature unavailable (no pepper)",
+      "status": "passed"
+    },
+    {
+      "name": "Google session survives password feature unavailable (no password migration)",
+      "status": "passed"
+    }
+  ]
+}

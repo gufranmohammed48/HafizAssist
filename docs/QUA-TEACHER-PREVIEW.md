@@ -1,4 +1,10 @@
-# QUD Teacher audio trial · V47
+# QUD Teacher audio trial · V50
+
+V50 changes only `mobile.html` page swipes: microphone loading, startup, recording, and stopping block swiping, and a page turn with the microphone off requires a horizontal drag across at least 70% of the page width. Short flicks do not turn pages. Desktop, this trial's audio and layout, and automatic recitation tracking remain unchanged. All loaded badges and the offline shell version are synchronized. Changes remain local; no tests, builds, browser checks, microphone tests, push, or deployment were performed for V50.
+
+V49 adds repeatable account tests at the owner's explicit request. All 51 completed local checks passed: 17 browser-interface cases against the actual account module with a mocked API, and 34 actual account Worker JavaScript/real in-memory SQLite contract cases. Coverage includes signup/login, password change and recovery, session revocation, progress ownership and conflicts, rate limits, offline queues, Arabic initials, and mobile forms. Native workerd and live-server attempts were blocked before case execution, so production behavior and Cloudflare CPU limits remain unverified. No live test account, product fix, push, or deployment occurred. See accounts/tests/README.md and its sanitized result artifacts.
+
+V48 completes the owner-approved username/password account-service deployment. Remote migration 0002 succeeded, PASSWORD_PEPPER was created privately, and Worker version 1eba00f9-be93-433b-b89c-c01a9e68f994 is active at 100% with the existing Google secrets, origin, and database preserved. The static website was not republished in this batch; local V48 badges and notes are ready for the owner. No account-flow, browser, or microphone tests were run; server bundling was part of deployment. This trial audio is unchanged.
 
 V47 shares the 3D folded-page show/hide artwork: text lines while visible and a blank page while hidden, replacing the eye icons. This is a local visual change only; trial audio and tracking are unchanged. No tests, builds, browser checks, microphone tests, push, or deployment were performed.
 
