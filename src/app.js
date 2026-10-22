@@ -20,6 +20,7 @@ const juzNames = ['الأول', 'الثاني', 'الثالث', 'الرابع', 
   'السابع والعشرون', 'الثامن والعشرون', 'التاسع والعشرون', 'الثلاثون'];
 const bookView = document.body.classList.contains('book-view');
 const mobileView = document.documentElement.dataset.layout === 'mobile';
+const interruptControls = document.documentElement.dataset.controlInterrupt === 'enabled';
 const teacherRetryEnabled = document.documentElement.dataset.teacherRetry === 'word';
 const teacherRetry = createTeacherRetry(teacherRetryEnabled);
 let chapters = [], words = [], elements = [], states = [], committed = [];
@@ -49,6 +50,7 @@ const wordInfo = createWordInfo(index => {
 let worker, sessionId = 0, pendingChunks = 0, workerTimer;
 let media, context, source, capture, analyser, mute, animation, flushResolve;
 let finishResolve, startResolve, stopPromise, engineResolve;
+let controlActionTail = Promise.resolve(), pendingControlActions = 0, swipeTurnPending = false;
 let elapsed = 0, startedAt = 0, memoryMode = false, fontSize = 34;
 try {
   const savedSize = Number(localStorage.getItem('hafizassist-font-size'));
@@ -221,6 +223,60 @@ function status(message, error = false) {
   $('status').hidden = voiceSearch || !(error || ['loading', 'starting'].includes(phase));
 }
 function locked() { return ['loading', 'starting', 'recording', 'stopping'].includes(phase); }
+function navigationLocked() {
+  return interruptControls ? ['loading', 'starting'].includes(phase) || (phase === 'stopping' && !pendingControlActions) : locked();
+}
+function runControlAction(action) {
+  if (!interruptControls) return Promise.resolve(action());
+  // Hold the mic off until the old session has drained and the requested
+  // action has finished. Queued ASR must never land on a newly selected page.
+  pendingControlActions++;
+  controls();
+  const operation = controlActionTail.then(async () => {
+    if (phase === 'recording' || stopPromise) await stopRecording();
+    if (phase !== 'idle') return false;
+    await teacher.cancelAndWait();
+    if (phase !== 'idle') return false;
+    return action();
+  }).catch(error => { status(error.message, true); return false; }).finally(() => {
+    pendingControlActions--;
+    controls();
+  });
+  controlActionTail = operation;
+  return operation;
+}
+if (interruptControls) {
+  // External modules own these click handlers. Replay the requested action
+  // after stopping, keeping their existing dialog and accessibility behavior.
+  // Word taps stay in the reader's bubble handler, AFTER swipe suppression.
+  const deferredControls = '#visibility, #theme, #font-smaller, #font-larger, #reset, #book-search, #book-menu, #book-close, #teacher-enabled, #teacher-voices button, #teacher-voices input, #teacher-replay, #teacher-dismiss, #account-open, #account-dialog button, #account-dialog a';
+  let replayingControl = false;
+  const replayControl = action => {
+    replayingControl = true;
+    try { action(); } finally { replayingControl = false; }
+  };
+  document.addEventListener('click', event => {
+    const control = event.target.closest(deferredControls);
+    if (replayingControl || !control || voiceSearch || (!pendingControlActions && !['recording', 'stopping'].includes(phase))) return;
+    if (control.closest('#teacher-voices') || ['teacher-enabled', 'teacher-replay'].includes(control.id)) teacher.unlock(true);
+    event.preventDefault(); event.stopImmediatePropagation();
+    void runControlAction(() => { if (control.isConnected && !control.disabled) replayControl(() => control.click()); });
+  }, true);
+  const beginEditing = event => {
+    if (!voiceSearch && phase === 'recording' && event.target.matches('#search, #surah, #ui-language')) {
+      // Keep the native input/picker gesture; only the session stops here.
+      void runControlAction(() => {});
+    }
+  };
+  document.addEventListener('pointerdown', beginEditing, true);
+  document.addEventListener('focusin', beginEditing);
+  document.addEventListener('change', event => {
+    if (replayingControl || voiceSearch || (!pendingControlActions && !['recording', 'stopping'].includes(phase)) || event.target.id !== 'ui-language') return;
+    const select = event.target, value = select.value;
+    event.stopImmediatePropagation();
+    void runControlAction(() => replayControl(() => { select.value = value; select.dispatchEvent(new Event('change', { bubbles: true })); }));
+  }, true);
+}
 function showSearchLockTip() {
   if (!$('search-lock-info').hidden) $('search-lock-tip').hidden = false;
 }
@@ -248,11 +304,11 @@ function controls() {
       document.querySelector('main').style.removeProperty('--mobile-reading-tail');
     }
   }
-  $('voice-open').disabled = !chapter || locked();
+  $('voice-open').disabled = !chapter || navigationLocked();
   const voiceShortcut = $('book-search');
   if (voiceShortcut) {
     voiceShortcut.disabled = $('voice-open').disabled;
-    voiceShortcut.title = phase === 'recording' ? 'Stop the microphone before searching for a verse by voice.'
+    voiceShortcut.title = phase === 'recording' && !interruptControls ? 'Stop the microphone before searching for a verse by voice.'
       : voiceShortcut.disabled ? 'Voice search will be available when Quran loading and microphone setup have finished.'
       : 'Find a verse by voice';
   }
@@ -260,8 +316,8 @@ function controls() {
   $('voice-record').disabled = busy || (phase === 'idle' && teacher.busy);
   $('voice-record').textContent = phase === 'recording' ? 'Find verse' : busy ? 'Please wait…' : 'Start voice search';
   $('voice-record').classList.toggle('listening', voiceSearch && phase === 'recording');
-  for (const id of ['search', 'search-go', 'surah']) $(id).disabled = locked() || !chapter;
-  const searchLocked = locked() || !chapter;
+  for (const id of ['search', 'search-go', 'surah']) $(id).disabled = navigationLocked() || !chapter;
+  const searchLocked = navigationLocked() || !chapter;
   $('search-lock-info').hidden = !searchLocked;
   $('search-lock-tip').textContent = ({
     recording: 'Search is paused while the microphone is on. Press the microphone button to stop reciting, then search or choose a surah.',
@@ -270,9 +326,9 @@ function controls() {
     stopping: 'Finishing recognition. Search will be available again in a moment.',
   })[phase] || 'Search will be available when the Quran text has loaded.';
   if (!searchLocked) hideSearchLockTip();
-  $('previous-page').disabled = locked() || currentPage <= 1;
-  $('next-page').disabled = locked() || currentPage >= 604;
-  $('record').disabled = !chapter || ['loading', 'starting', 'stopping'].includes(phase) || (phase === 'idle' && teacher.busy);
+  $('previous-page').disabled = navigationLocked() || currentPage <= 1;
+  $('next-page').disabled = navigationLocked() || currentPage >= 604;
+  $('record').disabled = !chapter || Boolean(stopPromise) || pendingControlActions > 0 || swipeTurnPending || ['loading', 'starting', 'stopping'].includes(phase) || (phase === 'idle' && teacher.busy);
   $('reset').disabled = ['loading', 'starting', 'stopping'].includes(phase);
   $('record').classList.toggle('recording', phase === 'recording');
   const recordLabel = ({ loading: 'Loading model…', starting: 'Opening microphone…', recording: 'Stop reciting', stopping: 'Finishing…' })[phase] || 'Start reciting';
@@ -455,7 +511,14 @@ function appendWord(row, word, text) {
   button.type = 'button';
   wordInfo.bind(button, index);
   button.addEventListener('click', () => {
-    if (bookView) { teacher.hearWord(teacherWord(word)); return; }
+    if (bookView) {
+      const reference = teacherWord(word);
+      if (interruptControls && (pendingControlActions || ['recording', 'stopping'].includes(phase)) && !voiceSearch) {
+        teacher.unlock(true);
+        void runControlAction(() => { void teacher.hearWord(reference); });
+      } else teacher.hearWord(reference);
+      return;
+    }
     if (locked()) { status('Stop reciting before choosing a different starting word.'); return; }
     teacher.cancel({ reset: true });
     cursor = index; segmentStart = index; segmentCarry = '';
@@ -687,8 +750,14 @@ function openPage(page, targetKey) {
 }
 const searchName = value => value.normalize('NFKD').replace(/[\u0300-\u036f\u064b-\u065f\u0670ـ]/g, '').replace(/[أإآٱ]/g, 'ا').toLowerCase().replace(/[^\p{L}\p{N}:]/gu, '');
 function searchPassage(event) {
-  event.preventDefault(); if (locked() || !chapter) return;
-  const value = $('search').value.trim()
+  event.preventDefault();
+  const query = $('search').value;
+  if (interruptControls) { void runControlAction(() => searchForPassage(query)); return; }
+  searchForPassage(query);
+}
+function searchForPassage(query) {
+  if (locked() || !chapter) return;
+  const value = query.trim()
     .replace(/[٠-٩]/g, digit => '٠١٢٣٤٥٦٧٨٩'.indexOf(digit))
     .replace(/[۰-۹]/g, digit => '۰۱۲۳۴۵۶۷۸۹'.indexOf(digit));
   if (/^\d+$/.test(value)) { openPage(Number(value)); return; }
@@ -996,7 +1065,7 @@ function animateLevel() {
 }
 
 async function startRecording(file) {
-  if (phase !== 'idle' || teacher.busy) return;
+  if (phase !== 'idle' || stopPromise || teacher.busy || pendingControlActions || swipeTurnPending) return;
   teacher.cancel({ reset: true }); teacherGate = false; teacherDraining = false;
   if (!voiceSearch) teacher.unlock();
   hideMicNotice();
@@ -1096,8 +1165,7 @@ async function stopRecording(reason = '') {
       });
       await releaseAudio();
       if (reason) showMicNotice(reason);
-      if (!worker) return;
-      await new Promise((resolve, reject) => {
+      if (worker) await new Promise((resolve, reject) => {
         const timer = setTimeout(() => { finishResolve = null; reject(new Error('Finishing recognition timed out. Your microphone is off. Please reload.')); }, 20000);
         finishResolve = error => { clearTimeout(timer); error ? reject(error) : resolve(); };
         worker.postMessage({ type: 'finish', sessionId });
@@ -1106,8 +1174,8 @@ async function stopRecording(reason = '') {
       status(cursor >= words.length ? 'You reached the end of your passage. Take a moment to revisit any highlighted words.' : 'Session paused. Start again to continue, or select a word to revisit it.');
       if (voiceSearch) findVoiceVerse();
       else { saveSession(); void accountClient?.flush(); }
-    } catch (error) { failEngine(error.message); }
-    finally { stopPromise = null; }
+    } catch (error) { await failEngine(error.message); }
+    finally { stopPromise = null; controls(); }
   })();
   return stopPromise;
 }
@@ -1153,12 +1221,16 @@ function openVoiceResult(result) {
   status(`Found ayah ${result.key}. Start reciting to continue from the highlighted word.`);
 }
 $('voice-open').addEventListener('click', () => {
+  if (interruptControls) { void runControlAction(openVoiceSearch); return; }
+  openVoiceSearch();
+});
+function openVoiceSearch() {
   if (locked()) return;
   teacher.cancel();
   voiceSearch = true; voiceText = ''; lastTranscript = ''; $('voice-results').replaceChildren();
   $('voice-dialog').showModal(); controls();
   status('Recite a few words from anywhere in the Quran. We will find the passage on this device.');
-});
+}
 $('voice-record').addEventListener('click', async () => {
   if (phase === 'recording') { await stopRecording(); return; }
   if (phase !== 'idle') return;
@@ -1177,21 +1249,27 @@ $('voice-dialog').addEventListener('cancel', event => { event.preventDefault(); 
 $('record').addEventListener('click', () => phase === 'recording' ? void stopRecording() : void startRecording());
 $('model-file').addEventListener('change', event => { const file = event.target.files[0]; if (file) void startRecording(file); event.target.value = ''; });
 $('reset').addEventListener('click', async () => { await stopRecording(); resetSession(); });
-$('previous-page').addEventListener('click', () => openPage(currentPage - 1));
-$('next-page').addEventListener('click', () => openPage(currentPage + 1));
+$('previous-page').addEventListener('click', () => { const target = currentPage - 1; void runControlAction(() => openPage(target)); });
+$('next-page').addEventListener('click', () => { const target = currentPage + 1; void runControlAction(() => openPage(target)); });
 if (mobileView) {
   let swipeStartPage;
-  const canSwipePage = direction => Boolean(chapter) && phase === 'idle' && !voiceSearch && !document.hidden &&
+  const canSwipePage = direction => Boolean(chapter) && (phase === 'idle' || (interruptControls && phase === 'recording')) &&
+    !pendingControlActions && !voiceSearch && !document.hidden &&
     !$('voice-dialog').open && !$('book-settings')?.open && !document.body.classList.contains('teacher-panel-open') &&
     currentPage + direction >= 1 && currentPage + direction <= 604;
   const stopSwipes = setupMobilePageSwipe({
     reader: document.querySelector('.reader'),
     canTurn: canSwipePage,
     onSwipeStart() { swipeStartPage = currentPage; wordInfo.hide(); },
-    beforeTurn(direction) {
+    async beforeTurn(direction) {
       if (currentPage !== swipeStartPage || !canSwipePage(direction)) return false;
-      // Swipes never stop a recitation. The microphone must already be off.
-      teacher.cancel();
+      if (interruptControls) {
+        // This callback runs only after release passes the 70% distance test.
+        // A short drag never stops the mic, cancels Teacher, or changes pages.
+        swipeTurnPending = true;
+        controls();
+        await runControlAction(() => {});
+      } else teacher.cancel();
       return currentPage === swipeStartPage && canSwipePage(direction);
     },
     turnPage(direction) {
@@ -1200,14 +1278,14 @@ if (mobileView) {
       openPage(page);
       return currentPage === page;
     },
+    onTurnEnd() { swipeTurnPending = false; controls(); },
   });
   window.addEventListener('pagehide', event => { if (!event.persisted) stopSwipes(); });
 }
 $('search-form').addEventListener('submit', searchPassage);
 $('surah').addEventListener('change', () => {
-  if (locked()) return;
   const key = `${$('surah').value}:1`;
-  if (layouts[key]) openPage(layouts[key][1][0][0], key);
+  void runControlAction(() => { if (!locked() && layouts[key]) openPage(layouts[key][1][0][0], key); });
 });
 $('visibility').addEventListener('click', () => {
   wordInfo.hide();

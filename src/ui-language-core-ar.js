@@ -56,6 +56,8 @@ export const messages = {
   'Previous page': 'الصفحة السابقة',
   'Stop the microphone, then swipe at least 70% of the page width: right for next, left for previous': 'أوقف الميكروفون، ثم اسحب مسافة لا تقل عن ٧٠٪ من عرض الصفحة: يمينًا للتالية ويسارًا للسابقة',
   'Stop the microphone before swiping. Swipe across at least 70% of the page width: right for the next page or left for the previous page. You can also choose a page in Reading settings.': 'أوقف الميكروفون قبل السحب. اسحب مسافة لا تقل عن ٧٠٪ من عرض الصفحة: يمينًا للصفحة التالية أو يسارًا للصفحة السابقة. ويمكنك أيضًا اختيار صفحة من إعدادات القراءة.',
+  'Swipe at least 70% of the page width: right for next, left for previous. A completed swipe turns off the microphone.': 'اسحب مسافة لا تقل عن ٧٠٪ من عرض الصفحة: يمينًا للتالية ويسارًا للسابقة. السحب المكتمل يوقف الميكروفون.',
+  'Swipe across at least 70% of the page width: right for the next page or left for the previous page. A completed swipe turns the microphone off before changing pages; short swipes keep it on. You can also choose a page in Reading settings.': 'اسحب مسافة لا تقل عن ٧٠٪ من عرض الصفحة: يمينًا للصفحة التالية أو يسارًا للصفحة السابقة. السحب المكتمل يوقف الميكروفون قبل تغيير الصفحة، أما السحب القصير فيُبقيه يعمل. ويمكنك أيضًا اختيار صفحة من إعدادات القراءة.',
   'Quran passage': 'المقطع القرآني',
   'Loading your passage…': 'جارٍ تحميل المقطع…',
   'Preparing Quran text': 'جارٍ تجهيز نص القرآن',

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-ui-language="enabled" data-layout="mobile" data-vowel-review="experimental" data-madd-timing="experimental" data-teacher-voices="preview" data-teacher-retry="word" data-hidden-text="blank">
+<html lang="en" data-ui-language="enabled" data-control-interrupt="enabled" data-layout="mobile" data-vowel-review="experimental" data-madd-timing="experimental" data-teacher-voices="preview" data-teacher-retry="word" data-hidden-text="blank">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#174f42"><meta name="description" content="Practice Quran memorization with private, offline recitation tracking and a full Mushaf.">
@@ -14,7 +14,7 @@
   <header class="header">
     <img class="bismillah" src="./assets/bismillah.png" alt="Bismillah ir-Rahman ir-Raheem">
     <button class="icon-button" id="theme" aria-label="Switch color theme">◐</button>
-    <span class="app-version" aria-label="Application version 50" title="Loaded application version">V50</span>
+    <span class="app-version" aria-label="Application version 51" title="Loaded application version">V51</span>
   </header>
   <main>
     <section class="card practice" aria-label="Practice and navigation">
@@ -58,11 +58,11 @@
     <article class="reader" aria-label="Mushaf" aria-describedby="mobile-page-help">
       <div class="surah-heading">
         <h2 lang="ar" dir="rtl" id="surah-ar">الفاتحة</h2>
-        <nav class="page-navigation" aria-label="Mushaf pages"><button id="next-page" class="icon-button" aria-label="Next page" title="Next page" disabled><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6"/></svg></button><span id="page-label" lang="ar" dir="rtl" aria-live="polite" aria-atomic="true" title="Stop the microphone, then swipe at least 70% of the page width: right for next, left for previous">١</span><button id="previous-page" class="icon-button" aria-label="Previous page" title="Previous page" disabled><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button></nav>
+        <nav class="page-navigation" aria-label="Mushaf pages"><button id="next-page" class="icon-button" aria-label="Next page" title="Next page" disabled><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6"/></svg></button><span id="page-label" lang="ar" dir="rtl" aria-live="polite" aria-atomic="true" title="Swipe at least 70% of the page width: right for next, left for previous. A completed swipe turns off the microphone.">١</span><button id="previous-page" class="icon-button" aria-label="Previous page" title="Previous page" disabled><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button></nav>
         <p id="surah-title" lang="ar" dir="rtl">الجزء الأول</p>
         
       </div>
-      <p id="mobile-page-help" class="sr-only">Stop the microphone before swiping. Swipe across at least 70% of the page width: right for the next page or left for the previous page. You can also choose a page in Reading settings.</p>
+      <p id="mobile-page-help" class="sr-only">Swipe across at least 70% of the page width: right for the next page or left for the previous page. A completed swipe turns the microphone off before changing pages; short swipes keep it on. You can also choose a page in Reading settings.</p>
       <div class="ayahs mushaf" id="ayahs" aria-label="Quran passage"><p class="loading">Loading your passage…</p></div>
       <div class="reader-footer" hidden><span id="passage-label">Preparing Quran text</span><div class="legend"><span><i class="green"></i>Matched</span><span><i class="amber"></i>Review</span><span><i class="gray"></i>Upcoming</span></div></div>
     </article>

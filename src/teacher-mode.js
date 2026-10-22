@@ -31,7 +31,7 @@ export function teacherAudioReference(word) {
 
 export function createTeacherMode({ getState, pauseRecognition, resumeRecognition, onStateChange, onCorrectionPlayed, onCorrectionSettled, onEnabledChange }) {
   const $ = id => document.getElementById(id);
-  if (!$('teacher-enabled')) return { refresh() {}, observe() {}, cancel() {}, unlock() {}, continuePage() {}, hearWord() {}, enabled: false, playing: false, busy: false };
+  if (!$('teacher-enabled')) return { refresh() {}, observe() {}, cancel() {}, async cancelAndWait() {}, unlock() {}, continuePage() {}, hearWord() {}, enabled: false, playing: false, busy: false };
   const card = $('teacher-feedback');
   let enabled = false;
   let audioContext, mediaAudio, silentUrl, source, activeJob, correction;
@@ -399,6 +399,15 @@ export function createTeacherMode({ getState, pauseRecognition, resumeRecognitio
     if (hide) hideCard();
     if (reason) message(reason);
   }
+  async function cancelAndWait(options) {
+    // Call after stopping recognition and before changing the passage. A
+    // cancelled job must finish releasing its capture gate on the old page.
+    do {
+      const job = activeJob, request = pendingManual;
+      cancel(options);
+      await Promise.all([job?.finished, request?.finished]);
+    } while (activeJob || pendingManual);
+  }
   async function speak(word, kind, key, replayWords) {
     if (activeJob || !word) return;
     const before = getState();
@@ -517,6 +526,7 @@ export function createTeacherMode({ getState, pauseRecognition, resumeRecognitio
     // before playing the latest requested word. There is never an audio queue.
     unlock(true);
     const request = { sequence: ++manualSequence, word, words: replayWords?.slice(0, 3), page: before.page, phase: before.phase };
+    request.finished = new Promise(resolve => { request.finish = resolve; });
     pendingManual = request;
     const previous = activeJob;
     previous?.controller.abort();
@@ -530,6 +540,7 @@ export function createTeacherMode({ getState, pauseRecognition, resumeRecognitio
       await speak(request.word, 'manual', undefined, request.words);
     } finally {
       if (pendingManual === request) pendingManual = null;
+      request.finish();
       refresh(); onStateChange?.();
     }
   }
@@ -687,7 +698,7 @@ export function createTeacherMode({ getState, pauseRecognition, resumeRecognitio
   });
   refresh();
   message(enabled ? 'Teacher on. Start reciting, or click a word to listen.' : 'Turn on Teacher for spoken hints and corrections. Click a word to listen.');
-  return { refresh, observe, cancel, unlock, continuePage, hearWord, completeRetry, get enabled() { return enabled; },
+  return { refresh, observe, cancel, cancelAndWait, unlock, continuePage, hearWord, completeRetry, get enabled() { return enabled; },
     get correctionPending() { return enabled && Boolean(correction || activeJob?.kind === 'correction'); },
     get playing() { return activeJob?.playing === true; }, get busy() { return Boolean(activeJob || pendingManual); } };
 }

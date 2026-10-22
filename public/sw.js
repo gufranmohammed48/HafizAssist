@@ -1,5 +1,5 @@
 // Increment with every delivered change; keep index.html's badge in sync.
-const VERSION = 'V50';
+const VERSION = 'V51';
 const PREFIX = `hafizassist-shell:${self.registration.scope}:`;
 // Numbering restarted at the user's request. Keep this cache series distinct
 // from the original V1 so an old open tab cannot receive a mixed app shell.

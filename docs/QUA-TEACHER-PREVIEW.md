@@ -1,4 +1,6 @@
-# QUD Teacher audio trial · V50
+# QUD Teacher audio trial · V51
+
+V51 enables manual controls during recitation only on `index.html` and `mobile.html`, stopping the recitation microphone safely before the requested action. A completed mobile swipe still needs 70% of the page width and stops the microphone before turning; short or cancelled swipes leave it running. Both test entries, including this QUD audio trial, retain their existing control behavior, layout, and audio choices. All loaded badges and the offline shell version are synchronized. Changes remain local; no tests, builds, browser checks, microphone tests, push, or deployment were performed for V51.
 
 V50 changes only `mobile.html` page swipes: microphone loading, startup, recording, and stopping block swiping, and a page turn with the microphone off requires a horizontal drag across at least 70% of the page width. Short flicks do not turn pages. Desktop, this trial's audio and layout, and automatic recitation tracking remain unchanged. All loaded badges and the offline shell version are synchronized. Changes remain local; no tests, builds, browser checks, microphone tests, push, or deployment were performed for V50.
 

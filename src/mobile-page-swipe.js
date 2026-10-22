@@ -1,5 +1,5 @@
 // Mobile-only page dragging. The caller supplies navigation and session guards.
-export function setupMobilePageSwipe({ reader, canTurn, beforeTurn, turnPage, onSwipeStart }) {
+export function setupMobilePageSwipe({ reader, canTurn, beforeTurn, turnPage, onSwipeStart, onTurnEnd }) {
   if (!reader || typeof turnPage !== 'function') return () => {};
 
   let motion = null;
@@ -58,6 +58,7 @@ export function setupMobilePageSwipe({ reader, canTurn, beforeTurn, turnPage, on
       }
     }
     reader.classList.remove('mobile-page-dragging', 'mobile-page-turning');
+    if (current.committed) onTurnEnd?.();
   }
 
   function wait(current, milliseconds) {
@@ -91,13 +92,15 @@ export function setupMobilePageSwipe({ reader, canTurn, beforeTurn, turnPage, on
   }
 
   async function commit(current, direction) {
+    current.committed = true;
     current.stage = 'turning';
     releaseCapture(current);
     reader.classList.remove('mobile-page-dragging');
     reader.classList.add('mobile-page-turning');
     try {
       // The caller must still allow navigation when the gesture commits.
-      // Starting the microphone during a drag cancels the pending page turn.
+      // Only a completed gesture reaches this barrier; short drags never
+      // invoke session-changing actions such as stopping the microphone.
       if (beforeTurn) {
         const ready = await beforeTurn(direction);
         if (current.finished) return;
