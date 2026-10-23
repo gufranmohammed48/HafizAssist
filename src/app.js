@@ -59,6 +59,22 @@ try {
 let lastFollowedAyah = null, savedThisRun = false;
 let history = [];
 let voiceSearch = false, voiceText = '', searchWorker, searchRequest = 0, searchTimer;
+let voiceEpoch = 0, voiceOpening = false, voiceClosing = false, voiceNavigating = false;
+let voiceQuery = null, voiceLiveTimer, voiceLiveQueued = false, voiceLastQuery = '';
+let voiceRevision = 0, voiceObservedText = '', voiceCandidate = null, voiceBeganAt = 0;
+let voiceStartupContext;
+const voiceActivity = createTeacherActivity();
+const VOICE_PAUSE_MS = 2000;
+// Reserve WebAudio on the original tap, before a previous recitation drains.
+// Mobile browsers may reject a newly created context after an awaited action.
+document.addEventListener('click', event => {
+  const opener = event.target.closest('#book-search, #voice-open');
+  if (!event.isTrusted || !opener || opener.disabled || voiceSearch || voiceOpening || voiceStartupContext) return;
+  try {
+    voiceStartupContext = new AudioContext();
+    void voiceStartupContext.resume().catch(() => {});
+  } catch { /* startRecording surfaces browser support and permission errors. */ }
+}, true);
 let scrollFrame;
 let mobileAlignmentPending = false;
 let mobileAlignmentFrame, mobileReadingStart, mobileHeightFrame;
@@ -313,8 +329,8 @@ function controls() {
       : 'Find a verse by voice';
   }
   $('voice-close').disabled = voiceSearch && busy;
-  $('voice-record').disabled = busy || (phase === 'idle' && teacher.busy);
-  $('voice-record').textContent = phase === 'recording' ? 'Find verse' : busy ? 'Please wait…' : 'Start voice search';
+  $('voice-record').disabled = busy || pendingControlActions > 0 || voiceClosing || voiceNavigating || (phase === 'idle' && teacher.busy);
+  $('voice-record').textContent = phase === 'recording' ? 'Finish search' : busy ? 'Please wait…' : 'Try again';
   $('voice-record').classList.toggle('listening', voiceSearch && phase === 'recording');
   for (const id of ['search', 'search-go', 'surah']) $(id).disabled = navigationLocked() || !chapter;
   const searchLocked = navigationLocked() || !chapter;
@@ -842,9 +858,14 @@ function createWorker() {
     if (data.type === 'result' && (!teacherGate || teacherDraining) && ['recording', 'stopping'].includes(phase)) {
       if (voiceSearch) {
         if (data.final) voiceText = (voiceText + data.text).slice(-2000);
-        $('voice-status').textContent = 'Listening. Recite a few distinctive words, then press Find verse.';
         if (!data.final) lastTranscript = data.text;
         else lastTranscript = '';
+        const text = voiceSearchText();
+        if (text !== voiceObservedText) {
+          voiceObservedText = text; voiceRevision++;
+          voiceActivity.noteRecognition();
+          scheduleLiveVoiceSearch();
+        }
       } else {
         const recognized = normalize(data.text);
         const freshSounds = recognized.length > teacherTranscript.length && recognized.startsWith(teacherTranscript);
@@ -1038,6 +1059,7 @@ async function releaseAudio() {
 }
 async function failEngine(message) {
   teacher.cancel(); teacherGate = false; teacherDraining = false;
+  if (voiceSearch) resetVoiceQueries();
   const interrupted = phase === 'recording' || phase === 'stopping';
   debug.log('engine-error', { message, snapshot: debugSnapshot() });
   phase = 'stopping'; controls();
@@ -1064,18 +1086,24 @@ function animateLevel() {
   animation = requestAnimationFrame(animateLevel);
 }
 
-async function startRecording(file) {
-  if (phase !== 'idle' || stopPromise || teacher.busy || pendingControlActions || swipeTurnPending) return;
+async function startRecording(file, preparedContext) {
+  if (phase !== 'idle' || stopPromise || teacher.busy || pendingControlActions || swipeTurnPending) {
+    void preparedContext?.close().catch(() => {});
+    return;
+  }
   teacher.cancel({ reset: true }); teacherGate = false; teacherDraining = false;
   if (!voiceSearch) teacher.unlock();
   hideMicNotice();
   debug.log('start-request', { page: currentPage, cursor, engineReady });
-  if (!navigator.mediaDevices?.getUserMedia || !window.AudioWorkletNode) { status('This browser does not support microphone tracking. Use a recent Chrome, Edge, Firefox, or Safari on HTTPS.', true); return; }
+  if (!navigator.mediaDevices?.getUserMedia || !window.AudioWorkletNode) {
+    void preparedContext?.close().catch(() => {});
+    status('This browser does not support microphone tracking. Use a recent Chrome, Edge, Firefox, or Safari on HTTPS.', true); return;
+  }
   if (!voiceSearch && cursor >= words.length) resetSession();
   phase = 'starting'; controls(); status('Allow microphone access to begin.');
   let micTimer, calibrationTimer, calibrationResolve;
   try {
-    context = new AudioContext();
+    context = preparedContext || new AudioContext();
     await context.resume();
     // Resume from the original click, then await initialization in this same flow.
     if (!engineReady) await loadEngine(file);
@@ -1122,7 +1150,8 @@ async function startRecording(file) {
         return;
       }
       if (teacherGate || !data.samples || !worker || !['recording', 'stopping'].includes(phase)) return;
-      if (!voiceSearch) teacherActivity.observe(data.samples);
+      if (voiceSearch) voiceActivity.observe(data.samples);
+      else teacherActivity.observe(data.samples);
       pendingChunks++;
       if (pendingChunks > 30) { failEngine('This device is processing audio too slowly. Close other tabs, then try a shorter passage.'); return; }
       worker.postMessage({ type: 'audio', samples: data.samples, sessionId }, [data.samples.buffer]);
@@ -1136,8 +1165,11 @@ async function startRecording(file) {
       clearTimeout(calibrationTimer);
       teacherActivity.reset(Date.now(), { preserveNoise: true });
     }
-    phase = 'recording'; if (!voiceSearch) { startedAt = Date.now(); savedThisRun = false; } controls(); animateLevel();
-    status(voiceSearch ? 'Recite any passage, then press Find verse.' : 'Listening. Recite the highlighted passage at your own pace.');
+    phase = 'recording';
+    if (voiceSearch) { voiceBeganAt = Date.now(); voiceActivity.reset(voiceBeganAt); }
+    else { startedAt = Date.now(); savedThisRun = false; }
+    controls(); animateLevel();
+    status(voiceSearch ? 'Listening. Recite a few distinctive words; matching verses will appear automatically.' : 'Listening. Recite the highlighted passage at your own pace.');
     alignMobileReadingStart();
   } catch (error) {
     debug.log('start-error', { name: error.name, message: error.message });
@@ -1149,7 +1181,7 @@ async function startRecording(file) {
   }
 }
 
-async function stopRecording(reason = '') {
+async function stopRecording(reason = '', { search = true } = {}) {
   if (stopPromise) return stopPromise;
   if (phase !== 'recording') return;
   debug.log('stop-request', { reason: reason || 'user', snapshot: debugSnapshot() });
@@ -1171,78 +1203,184 @@ async function stopRecording(reason = '') {
         worker.postMessage({ type: 'finish', sessionId });
       });
       phase = 'idle'; controls();
-      status(cursor >= words.length ? 'You reached the end of your passage. Take a moment to revisit any highlighted words.' : 'Session paused. Start again to continue, or select a word to revisit it.');
-      if (voiceSearch) findVoiceVerse();
-      else { saveSession(); void accountClient?.flush(); }
+      if (voiceSearch) {
+        if (search && !voiceClosing && !voiceNavigating) findVoiceVerse({ final: true });
+      } else {
+        status(cursor >= words.length ? 'You reached the end of your passage. Take a moment to revisit any highlighted words.' : 'Session paused. Start again to continue, or select a word to revisit it.');
+        saveSession(); void accountClient?.flush();
+      }
     } catch (error) { await failEngine(error.message); }
     finally { stopPromise = null; controls(); }
   })();
   return stopPromise;
 }
 
-function findVoiceVerse() {
-  const text = voiceText + lastTranscript;
-  if (!text.trim()) { status('No speech recognized. Try again and recite several words.', true); return; }
-  if (!searchWorker) {
-    searchWorker = new Worker(new URL('./voice-search-worker.js', import.meta.url), { type: 'module' });
-    searchWorker.postMessage({ type: 'init', verses: chapters.flatMap(c => c.verses).map(v => ({ key: verseKey(v), phonemes: v.aya_phonemes_list })) });
-    searchWorker.onerror = () => { clearTimeout(searchTimer); searchWorker?.terminate(); searchWorker = null; if (voiceSearch) status('Voice search could not load. Please try again.', true); };
-    searchWorker.onmessage = ({ data }) => {
-      if (!voiceSearch || data.id !== searchRequest) return;
-      clearTimeout(searchTimer);
-      if (data.error) { status(data.error, true); return; }
-      $('voice-results').replaceChildren();
-      if (!data.results.length) { status(data.short ? 'Recite a longer phrase so we can locate the verse.' : 'No close match found. Try a longer, distinctive passage.', true); return; }
-      status('Select your verse. Similar passages may appear in several places.');
-      for (const result of data.results) {
-        const [surah, ayah] = result.key.split(':').map(Number);
-        const ch = chapters.find(c => c.id === surah), verse = ch.verses.find(v => v.ayah === ayah);
-        const button = document.createElement('button'); button.type = 'button'; button.className = 'voice-result';
-        const label = document.createElement('span'); label.textContent = `${result.key} · ${ch.en} — ${ch.ar}`;
-        const text = document.createElement('span'); text.lang = 'ar'; text.dir = 'rtl'; text.textContent = verse.aya_text;
-        button.append(label, text); button.onclick = () => openVoiceResult(result); $('voice-results').append(button);
-      }
-      if (data.results[0].score >= .88 && (!data.results[1] || data.results[0].score - data.results[1].score > .09)) openVoiceResult(data.results[0]);
-    };
+function voiceSearchText() { return (voiceText + lastTranscript).trim(); }
+function resetVoiceQueries() {
+  searchRequest++;
+  clearTimeout(searchTimer); clearTimeout(voiceLiveTimer); voiceLiveTimer = null;
+  voiceQuery = null; voiceLiveQueued = false; voiceLastQuery = '';
+  voiceCandidate = null; voiceRevision = 0; voiceObservedText = '';
+}
+function scheduleLiveVoiceSearch() {
+  if (!voiceSearch || phase !== 'recording' || voiceClosing || voiceNavigating || voiceLiveTimer) return;
+  voiceLiveTimer = setTimeout(() => {
+    voiceLiveTimer = null;
+    if (voiceSearch && phase === 'recording' && !voiceClosing && !voiceNavigating) findVoiceVerse();
+  }, 650);
+}
+async function voiceSearchFailed(message, epoch = voiceEpoch) {
+  if (!voiceSearch || epoch !== voiceEpoch) return;
+  resetVoiceQueries();
+  searchWorker?.terminate(); searchWorker = null;
+  await stopRecording('', { search: false });
+  if (voiceSearch && epoch === voiceEpoch && !voiceClosing) status(message, true);
+}
+function renderVoiceResults(results, epoch) {
+  $('voice-results').replaceChildren();
+  for (const result of results) {
+    const [surah, ayah] = result.key.split(':').map(Number);
+    const ch = chapters.find(c => c.id === surah), verse = ch?.verses.find(v => v.ayah === ayah);
+    if (!verse) continue;
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'voice-result';
+    const label = document.createElement('span'); label.textContent = `${result.key} · ${ch.en} — ${ch.ar}`;
+    const text = document.createElement('span'); text.lang = 'ar'; text.dir = 'rtl'; text.textContent = verse.aya_text;
+    button.append(label, text);
+    button.onclick = () => { if (epoch === voiceEpoch) void openVoiceResult(result); };
+    $('voice-results').append(button);
   }
-  status('Searching the whole Quran on this device…');
-  const id = ++searchRequest;
+}
+function receiveVoiceMatches(data) {
+  const query = voiceQuery;
+  if (!voiceSearch || !query || query.epoch !== voiceEpoch || data.id !== query.id || data.id !== searchRequest || voiceClosing || voiceNavigating) return;
+  clearTimeout(searchTimer); voiceQuery = null;
+  if (data.error) { void voiceSearchFailed(data.error, query.epoch); return; }
+  // A partial can be revised while the search worker is busy. Only the
+  // currently heard phrase may trigger navigation or replace the result list.
+  if (!query.final && (phase !== 'recording' || query.text !== voiceSearchText())) {
+    if (phase === 'recording') scheduleLiveVoiceSearch();
+    return;
+  }
+  renderVoiceResults(data.results, query.epoch);
+  if (!data.results.length) {
+    voiceCandidate = null;
+    if (query.final) status(data.short ? 'Recite a longer phrase so we can locate the verse.' : 'No close match found. Try a longer, distinctive passage.', true);
+  } else if (data.autoOpenEligible) {
+    if (query.final) { void openVoiceResult(data.results[0]); return; }
+    const key = data.results[0].key;
+    if (voiceCandidate?.key !== key) voiceCandidate = { key, at: Date.now(), revision: query.revision, observations: 1 };
+    else if (voiceCandidate.revision !== query.revision) {
+      voiceCandidate.revision = query.revision; voiceCandidate.observations++;
+    }
+    if (voiceCandidate.observations >= 2 && Date.now() - voiceCandidate.at >= 650) {
+      // Stop first, then search again using the drained final ASR text.
+      // An early unique hypothesis never navigates directly.
+      void stopRecording();
+      return;
+    }
+  } else voiceCandidate = null;
+  if (data.results.length) status(data.results.length > 1
+    ? 'Select your verse. Similar passages appear in several places.'
+    : query.final ? 'Select your verse. Similar passages may appear in several places.'
+    : 'Listening. Recite a few distinctive words; matching verses will appear automatically.');
+  if (voiceLiveQueued) { voiceLiveQueued = false; scheduleLiveVoiceSearch(); }
+}
+function findVoiceVerse({ final = false } = {}) {
+  if (!voiceSearch || voiceClosing || voiceNavigating || (!final && phase !== 'recording')) return;
+  if (final) {
+    // Invalidate an in-flight partial even if final ASR contains no text.
+    searchRequest++; voiceQuery = null;
+    clearTimeout(searchTimer); clearTimeout(voiceLiveTimer); voiceLiveTimer = null; voiceLiveQueued = false;
+    $('voice-results').replaceChildren();
+  }
+  const text = voiceSearchText();
+  if (!text) { if (final) status('No speech recognized. Try again and recite several words.', true); return; }
+  if (!final && voiceQuery) { voiceLiveQueued = true; return; }
+  if (!final && text === voiceLastQuery) return;
+  if (!searchWorker) {
+    try {
+      searchWorker = new Worker(new URL('./voice-search-worker.js', import.meta.url), { type: 'module' });
+      const activeWorker = searchWorker;
+      searchWorker.onmessage = ({ data }) => { if (searchWorker === activeWorker) receiveVoiceMatches(data); };
+      searchWorker.onerror = () => { if (searchWorker === activeWorker) void voiceSearchFailed('Voice search could not load. Please try again.'); };
+      searchWorker.postMessage({ type: 'init', verses: chapters.flatMap(c => c.verses).map(v => ({ key: verseKey(v), phonemes: v.aya_phonemes_list })) });
+    } catch { void voiceSearchFailed('Voice search could not load. Please try again.'); return; }
+  }
+  if (final) {
+    status('Checking matching verses…');
+  }
+  voiceLastQuery = text;
+  const id = ++searchRequest, epoch = voiceEpoch;
+  voiceQuery = { id, epoch, text, final, revision: voiceRevision };
   clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => { if (id !== searchRequest) return; searchRequest++; searchWorker?.terminate(); searchWorker = null; status('Search took too long. Please try a shorter phrase.', true); }, 30000);
+  searchTimer = setTimeout(() => {
+    if (id === searchRequest && epoch === voiceEpoch) void voiceSearchFailed('Search took too long. Please try a shorter phrase.', epoch);
+  }, 30000);
   searchWorker.postMessage({ type: 'search', id, text });
 }
-function openVoiceResult(result) {
-  if (locked()) return;
-  voiceSearch = false; searchRequest++; clearTimeout(searchTimer); $('voice-dialog').close();
-  const page = layouts[result.key][1][result.word]?.[0] || layouts[result.key][1][0][0];
-  openPage(page, result.key);
-  const index = words.findIndex(w => !w.bismillah && `${w.surah}:${w.ayah}` === result.key && w.position === result.word);
-  if (index >= 0) { cursor = index; segmentStart = index; paint(); followWord(true); }
-  status(`Found ayah ${result.key}. Start reciting to continue from the highlighted word.`);
+async function openVoiceResult(result) {
+  if (!voiceSearch || voiceClosing || voiceNavigating || !layouts[result.key]) return;
+  const epoch = voiceEpoch;
+  voiceNavigating = true; resetVoiceQueries(); controls();
+  try {
+    // Tapping any candidate also stops and drains capture before changing the
+    // Quran page. No voice-search result is fed into practice word tracking.
+    await stopRecording('', { search: false });
+    if (!voiceSearch || epoch !== voiceEpoch || voiceClosing || phase !== 'idle') return;
+    voiceSearch = false; voiceEpoch++; $('voice-dialog').close();
+    const page = layouts[result.key][1][result.word]?.[0] || layouts[result.key][1][0][0];
+    openPage(page, result.key);
+    const index = words.findIndex(w => !w.bismillah && `${w.surah}:${w.ayah}` === result.key && w.position === result.word);
+    if (index >= 0) { cursor = index; segmentStart = index; paint(); followWord(true); }
+    status(`Found ayah ${result.key}. Start reciting to continue from the highlighted word.`);
+  } finally { voiceNavigating = false; controls(); }
 }
-$('voice-open').addEventListener('click', () => {
-  if (interruptControls) { void runControlAction(openVoiceSearch); return; }
-  openVoiceSearch();
-});
-function openVoiceSearch() {
-  if (locked()) return;
-  teacher.cancel();
-  voiceSearch = true; voiceText = ''; lastTranscript = ''; $('voice-results').replaceChildren();
-  $('voice-dialog').showModal(); controls();
-  status('Recite a few words from anywhere in the Quran. We will find the passage on this device.');
+async function startVoiceSearchAttempt() {
+  if (!voiceSearch || phase !== 'idle' || stopPromise || voiceClosing || voiceNavigating) return;
+  resetVoiceQueries(); voiceText = ''; lastTranscript = ''; $('voice-results').replaceChildren();
+  const prepared = voiceStartupContext; voiceStartupContext = null;
+  await startRecording(undefined, prepared);
+}
+$('voice-open').addEventListener('click', () => { void openVoiceSearch(); });
+async function openVoiceSearch() {
+  if (voiceOpening || voiceSearch) return;
+  voiceOpening = true;
+  try {
+    await runControlAction(() => {
+      if (locked()) return;
+      teacher.cancel();
+      voiceSearch = true; voiceEpoch++; voiceClosing = false; voiceNavigating = false;
+      $('voice-dialog').showModal(); controls();
+    });
+    await startVoiceSearchAttempt();
+  } finally {
+    voiceOpening = false;
+    if (voiceStartupContext) { void voiceStartupContext.close().catch(() => {}); voiceStartupContext = null; }
+    controls();
+  }
 }
 $('voice-record').addEventListener('click', async () => {
+  if (!voiceSearch) return;
   if (phase === 'recording') { await stopRecording(); return; }
-  if (phase !== 'idle') return;
-  voiceText = ''; lastTranscript = ''; searchRequest++; clearTimeout(searchTimer); $('voice-results').replaceChildren();
-  await startRecording();
+  await startVoiceSearchAttempt();
 });
 async function closeVoiceSearch() {
-  if (['loading', 'starting', 'stopping'].includes(phase)) return;
-  if (phase === 'recording') await stopRecording();
-  voiceSearch = false; searchRequest++; clearTimeout(searchTimer); $('voice-dialog').close(); controls();
-  status('Voice search closed. Your practice position is unchanged.');
+  if (['loading', 'starting'].includes(phase) || voiceClosing) return;
+  voiceClosing = true; resetVoiceQueries(); controls();
+  try {
+    await stopRecording('', { search: false });
+    voiceSearch = false; voiceEpoch++; $('voice-dialog').close();
+    status('Voice search closed. Your practice position is unchanged.');
+  } finally { voiceClosing = false; controls(); }
 }
+setInterval(() => {
+  if (!voiceSearch || phase !== 'recording' || voiceClosing || voiceNavigating || document.hidden) return;
+  const now = Date.now();
+  // Use fresh microphone activity, including held vowels, rather than the
+  // arrival time of delayed ASR results to decide the reader has finished.
+  if (voiceSearchText() && voiceActivity.captureAt && now - voiceActivity.captureAt < 1500 && now - voiceActivity.speechAt >= VOICE_PAUSE_MS) void stopRecording();
+  else if (!voiceSearchText() && now - voiceBeganAt >= 30000) void stopRecording();
+}, 200);
 $('voice-close').addEventListener('click', closeVoiceSearch);
 $('voice-dialog').addEventListener('cancel', event => { event.preventDefault(); void closeVoiceSearch(); });
 
@@ -1299,7 +1437,10 @@ $('visibility').addEventListener('click', () => {
   paint();
 });
 $('theme').addEventListener('click', () => { const dark = document.body.classList.toggle('dark'); try { localStorage.setItem('hafizassist-theme', dark ? 'dark' : 'light'); } catch {} });
-window.addEventListener('pagehide', () => { media?.getTracks().forEach(track => track.stop()); worker?.terminate(); void context?.close(); });
+window.addEventListener('pagehide', () => {
+  media?.getTracks().forEach(track => track.stop()); worker?.terminate(); void context?.close();
+  void voiceStartupContext?.close().catch(() => {});
+});
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     if (phase === 'recording') void stopRecording('Recitation paused because the page was hidden. Start the microphone again to continue.');
